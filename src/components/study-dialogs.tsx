@@ -499,7 +499,14 @@ function TextPreview({ file }: { file: StudyFile }) {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("文件读取失败");
-        return response.text();
+        const buffer = await response.arrayBuffer();
+        const utf8 = new TextDecoder("utf-8").decode(buffer);
+        // A number of Windows study notes are saved as GBK/GB18030. If UTF-8
+        // decoding produces replacement characters, retry with the Chinese
+        // Windows encoding so the preview remains readable.
+        return utf8.includes("\uFFFD")
+          ? new TextDecoder("gb18030").decode(buffer)
+          : utf8;
       })
       .then(setText)
       .catch((error) => {
