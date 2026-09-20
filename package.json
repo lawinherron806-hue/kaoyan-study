@@ -24,12 +24,18 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-rsc": "^0.5.35",
     "prettier": "^3.9.8",
+    "react-server-dom-webpack": "^19.3.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "vinext": "^1.0.0-beta.10",
+    "vite": "^8.3.0"
   },
   "engines": {
     "node": ">=22.13.0"
-  }
+  },
+  "type": "module"
 }
