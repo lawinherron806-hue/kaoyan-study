@@ -49,6 +49,7 @@ import {
   CatalogDialog,
   FilePreview,
 } from "./study-dialogs";
+const displayFileName = (name: string) => name.replace(/^(数学|英语|信号)__[^_]+__/, "");
 type Icon = typeof BookOpen;
 const nav: { href: string; label: string; icon: Icon; future?: boolean }[] = [
   { href: "/", label: "学习概览", icon: LayoutDashboard },
@@ -172,7 +173,7 @@ export default function StudyApp({ initial }: { initial: Snapshot }) {
           <FileText size={21} />
         </span>
         <span className="file-info">
-          <strong>{f.title}</strong>
+          <strong>{displayFileName(f.title)}</strong>
           <small>
             {s?.name} <span> / </span>
             {categories.get(f.category_id)?.name} · {bytes(f.size)}
@@ -1070,7 +1071,7 @@ export default function StudyApp({ initial }: { initial: Snapshot }) {
         />
       )}
       {viewFile && (
-        <Modal title={viewFile.title} onClose={() => setViewFile(null)}>
+        <Modal title={displayFileName(viewFile.title)} onClose={() => setViewFile(null)}>
           <div className="file-details">
             <span className="tag">
               {categories.get(viewFile.category_id)?.name}
@@ -1109,7 +1110,7 @@ export default function StudyApp({ initial }: { initial: Snapshot }) {
               className="btn danger"
               disabled={busy}
               onClick={() => {
-                if (window.confirm(`确定永久删除“${viewFile.title}”及原文件？`))
+                if (window.confirm(`确定永久删除“${displayFileName(viewFile.title)}”及原文件？`))
                   act(async () => {
                     await api(`/api/files/${viewFile.id}`, undefined, "DELETE");
                     setViewFile(null);

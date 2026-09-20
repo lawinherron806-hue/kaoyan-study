@@ -78,13 +78,15 @@ export function UploadDialog({
       const form = new FormData(e.currentTarget);
       const files = bulkFiles.length ? bulkFiles : [file];
       for (const current of files) {
+        const marker = current.name.match(/^(数学|英语|信号)__([^_]+)__(.+)$/);
+        const originalName = marker?.[3] || current.name;
         const lower = current.name.toLowerCase();
-        const autoSubject = lower.includes("英语") ? data.subjects.find((s) => s.name.includes("英语"))?.id : lower.includes("信号") ? data.subjects.find((s) => s.name.includes("信号"))?.id : lower.includes("数学") ? data.subjects.find((s) => s.name.includes("数学"))?.id : subject;
-        const autoKind = lower.includes("错题") ? "mistake" : lower.includes("例题") ? "material" : "note";
+        const autoSubject = marker?.[1] === "英语" || (!marker && lower.includes("英语")) ? data.subjects.find((s) => s.name.includes("英语"))?.id : marker?.[1] === "信号" || (!marker && lower.includes("信号")) ? data.subjects.find((s) => s.name.includes("信号"))?.id : marker?.[1] === "数学" || (!marker && lower.includes("数学")) ? data.subjects.find((s) => s.name.includes("数学"))?.id : subject;
+        const autoKind = marker?.[2] === "错题" || (!marker && lower.includes("错题")) ? "mistake" : marker?.[2] === "例题" || (!marker && lower.includes("例题")) ? "material" : "note";
         const autoCategory = data.categories.find((c) => c.kind === autoKind)?.id || form.get("category");
         const prepared = await api("/api/files", {
-        title: String(form.get("title") || current.name),
-        original_name: current.name,
+        title: String(form.get("title") || originalName),
+        original_name: originalName,
         size: current.size,
         subject_id: autoSubject,
         chapter_id: form.get("chapter") || null,
