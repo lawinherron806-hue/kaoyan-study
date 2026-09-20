@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Upload, FileText } from "lucide-react";
+import { unzipSync } from "fflate";
 import type { Snapshot, Task, StudyFile } from "@/lib/types";
 import { validateFile } from "@/lib/config";
 import { api } from "@/lib/client-api";
@@ -27,6 +28,7 @@ export function UploadDialog({
       defaultSubject === "all" ? data.subjects[0]?.id : defaultSubject,
     ),
     [file, setFile] = useState<File | null>(null),
+    [bulkFiles, setBulkFiles] = useState<File[]>([]),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   function select(file: File | undefined) {
@@ -37,6 +39,30 @@ export function UploadDialog({
       setMessage("");
     } catch (e) {
       setMessage((e as Error).message);
+    }
+  }
+  async function selectAny(file: File | undefined) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".zip")) return select(file);
+    try {
+      const zip = unzipSync(new Uint8Array(await file.arrayBuffer()));
+      const extracted: File[] = [];
+      for (const [path, bytes] of Object.entries(zip)) {
+        if (path.endsWith("/")) continue;
+        const name = path.split("/").pop() || path;
+        if (!/\.(pdf|doc|docx|md|txt|jpg|jpeg|png|webp)$/i.test(name)) continue;
+        const subjectKey = path.includes("英语") ? "英语" : path.includes("信号") ? "信号" : "数学";
+        const kindKey = path.includes("错题") ? "错题" : path.includes("例题") ? "例题" : "笔记";
+        const out = new File([new Blob([bytes.buffer as ArrayBuffer])], `${subjectKey}__${kindKey}__${name}`, { type: "application/octet-stream" });
+        validateFile(out.name, out.size);
+        extracted.push(out);
+      }
+      if (!extracted.length) throw new Error("压缩包中没有可导入的学习文件");
+      setBulkFiles(extracted);
+      setFile(extracted[0]);
+      setMessage(`已读取 ${extracted.length} 个文件，将按压缩包目录自动分类`);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "压缩包读取失败");
     }
   }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -50,13 +76,19 @@ export function UploadDialog({
     let pendingId: string | undefined;
     try {
       const form = new FormData(e.currentTarget);
-      const prepared = await api("/api/files", {
-        title: String(form.get("title") || file.name),
-        original_name: file.name,
-        size: file.size,
-        subject_id: subject,
+      const files = bulkFiles.length ? bulkFiles : [file];
+      for (const current of files) {
+        const lower = current.name.toLowerCase();
+        const autoSubject = lower.includes("英语") ? data.subjects.find((s) => s.name.includes("英语"))?.id : lower.includes("信号") ? data.subjects.find((s) => s.name.includes("信号"))?.id : lower.includes("数学") ? data.subjects.find((s) => s.name.includes("数学"))?.id : subject;
+        const autoKind = lower.includes("错题") ? "mistake" : lower.includes("例题") ? "material" : "note";
+        const autoCategory = data.categories.find((c) => c.kind === autoKind)?.id || form.get("category");
+        const prepared = await api("/api/files", {
+        title: String(form.get("title") || current.name),
+        original_name: current.name,
+        size: current.size,
+        subject_id: autoSubject,
         chapter_id: form.get("chapter") || null,
-        category_id: form.get("category"),
+        category_id: autoCategory,
         tags: String(form.get("tags") || "")
           .split(/[,，]/)
           .map((t) => t.trim())
@@ -71,21 +103,22 @@ export function UploadDialog({
         );
         const { error } = await client.storage
           .from("study-files")
-          .uploadToSignedUrl(prepared.path, prepared.token, file, {
-            contentType: file.type || "application/octet-stream",
+          .uploadToSignedUrl(prepared.path, prepared.token, current, {
+            contentType: current.type || "application/octet-stream",
           });
         if (error) throw error;
       } else {
         const payload = new FormData();
-        payload.set("file", file);
+        payload.set("file", current);
         const response = await fetch(`/api/files/${prepared.id}`, {
           method: "PUT",
           body: payload,
         });
         if (!response.ok) throw new Error((await response.json()).error);
       }
-      await api(`/api/files/${prepared.id}`);
-      pendingId = undefined;
+        await api(`/api/files/${prepared.id}`);
+        pendingId = undefined;
+      }
       await onSaved();
     } catch (e) {
       if (pendingId)
@@ -110,7 +143,7 @@ export function UploadDialog({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            select(e.dataTransfer.files[0]);
+            selectAny(e.dataTransfer.files[0]);
           }}
         >
           <Upload size={30} />
@@ -123,8 +156,8 @@ export function UploadDialog({
           <input
             type="file"
             aria-label="选择上传文件"
-            accept=".pdf,.doc,.docx,.md,.txt,.jpg,.jpeg,.png,.webp"
-            onChange={(e) => select(e.target.files?.[0])}
+            accept=".zip,.pdf,.doc,.docx,.md,.txt,.jpg,.jpeg,.png,.webp"
+            onChange={(e) => selectAny(e.target.files?.[0])}
           />
         </label>
         <label>
