@@ -7,11 +7,16 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "dev:vinext": "vinext dev --port 3001",
+    "build:vinext": "vinext build",
+    "start:vinext": "wrangler dev --config dist/server/wrangler.json",
+    "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.0",
+    "@vinext/cloudflare": "^1.0.0-beta.8",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
@@ -19,6 +24,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.11",
     "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.0.0",

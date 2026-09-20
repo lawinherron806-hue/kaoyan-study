@@ -6,3 +6,6 @@ node_modules/
 *.tsbuildinfo
 test-results/
 .sites-runtime/
+/dist/
+.vinext/
+.wrangler/
